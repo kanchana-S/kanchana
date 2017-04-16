@@ -1,0 +1,54 @@
+#include<iostream>
+#include"stdlib.h"
+#include"omp.h"
+
+#define true 1
+#define false 0
+using namespace std;
+int nodes,cost[10][10],i,j,visited[10],vis=1,sum=0,x,y;
+
+int main()
+{
+   	int m=999,c;
+   	cout<<"Enter the number of nodes: ";	
+	cin>>nodes;
+	for (i = 1; i <=nodes; i++) 
+	{
+	  for (j = 1; j <= nodes; j++) 
+	    {
+	      cout<<"enter cost from " << i <<" to "<<j<<": ";
+	      cin>>c;	
+	      cost[i][j]=c;
+            }
+	}
+visited[1]=true;
+cout<<"\nThe minimum spanning tree is:\n";
+while(vis<nodes)
+{
+  #pragma omp parallel for
+    for(i=1;i<=nodes;i++)
+     {
+	if(visited[i]==true)
+	{
+	  for(j=1;j<=nodes;j++)
+	  {
+	    if((cost[i][j]<=m && cost[i][j]!=0) && (visited[j]==false))
+             {
+		m=cost[i][j];
+		x=i;
+		y=j;
+	     }
+          }
+        }
+     }
+      vis=vis+1;
+	sum=sum+m;
+	cout<<x<<"==>"<<y<<"\t cost: "<<cost[x][y]<<endl;
+	visited[y]=true;
+      m=999;
+}
+cout<<"\n Minimum spanning tree cost : "<<sum<<"\n";
+return 0;
+}
+
+

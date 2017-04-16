@@ -1,0 +1,176 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang16393{\fonttbl{\f0\fnil Consolas;}{\f1\fnil\fcharset0 Calibri;}}
+{\colortbl ;\red128\green128\blue128;\red0\green0\blue0;\red163\green21\blue21;\red0\green128\blue0;\red0\green0\blue255;}
+{\*\generator Riched20 10.0.14393}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\cf1\f0\fs19\lang9 #include\cf2  \cf3 <stdio.h>\cf2  \cf4 //standard input output\cf2\par
+\cf1 #include\cf2  \cf3 <cuda.h>\cf2  \cf4 // cuda files to understand cudaMalloc functions\cf2\par
+\par
+__global__ \cf5 void\cf2  testKernel(\cf5 int\cf2  *in, \cf5 int\cf2  *out, \cf5 int\cf2  size)  \cf4 // *in are pointers where we are going to point them at d_sorted and d_a;\cf2\par
+\{\tab\tab\cf4 //you'll see\cf2\par
+\par
+\tab\cf5 bool\cf2  oddeven = \cf5 true\cf2 ; \cf4 //we take boolean values.\cf2\par
+\tab\cf4 //on a serious matter lets move on\cf2\par
+\tab __shared__ \cf5 bool\cf2  swappedodd; \cf4 //swappedodd and even are for the two ways in which odd-even sort is solved\cf2\par
+\par
+\tab __shared__ \cf5 bool\cf2  swappedeven;\par
+\par
+\tab\cf5 int\cf2  temp, i; \cf4 //i is not necessary here. but temp is used to exchange numbers from their resp positions\cf2\par
+\par
+\tab swappedodd = \cf5 true\cf2 ; \cf4 //  you make it true and negate it later as you'll see.\cf2\par
+\par
+\tab swappedeven = \cf5 true\cf2 ;\par
+\par
+\par
+\tab\cf5 while\cf2  (\cf5 true\cf2 ) \cf4 //infinite loop till false comes.\cf2\par
+\par
+\tab\{\par
+\par
+\tab\tab\cf5 if\cf2  (oddeven == \cf5 true\cf2 ) \cf4 //geys into this loop first because oddeven = true;\cf2\par
+\par
+\tab\tab\{\par
+\par
+\tab\tab\tab __syncthreads(); \cf4 //imp! this is used to synchronize all threads that are generated within the global kernel\cf2\par
+\tab\tab\tab\cf4 //This will ensure even if one thread gets its work done first it will wait till everyone is done with it.  \cf2\par
+\tab\tab\tab swappedodd = \cf5 false\cf2 ; \cf4 //this is done for it to comply with internal cond.\cf2\par
+\par
+\tab\tab\tab __syncthreads();\cf4 // synchronizing again\cf2\par
+\par
+\tab\tab\tab\cf5 if\cf2  (threadIdx.y == 0) \cf4 //if in array there is no y axis digits then...\cf2\par
+\tab\tab\tab\{\par
+\par
+\tab\tab\tab\tab\cf5 int\cf2  idx = threadIdx.x; \cf4 //naming a variable as a thread id. it can be many threads like threadIdx.1 .2 .. and so on\cf2\par
+\tab\tab\tab\tab\cf5 if\cf2  (idx<(size / 2)) \cf4 //if idx has less no. than half the size of the array we enter the loop\cf2\par
+\par
+\tab\tab\tab\tab\{\par
+\par
+\tab\tab\tab\tab\tab\cf5 if\cf2  (in[2 * idx]>in[2 * idx + 1]) \cf4 // if left index has more weighted number than right index number we exchage\cf2\par
+\par
+\tab\tab\tab\tab\tab\{\par
+\par
+\tab\tab\tab\tab\tab\tab\cf4 //\tab\tab\tab swap(in[],in[2*idx+1]);\cf2\par
+\tab\tab\tab\tab\tab\tab temp = in[2 * idx];\par
+\tab\tab\tab\tab\tab\tab in[2 * idx] = in[2 * idx + 1];\par
+\tab\tab\tab\tab\tab\tab in[2 * idx + 1] = temp;\par
+\tab\tab\tab\tab\tab\tab swappedodd = \cf5 true\cf2 ; \cf4 //on exchange the swappedodd id turned true\cf2\par
+\par
+\tab\tab\tab\tab\tab\}\par
+\par
+\tab\tab\tab\tab\}\par
+\par
+\tab\tab\tab\} \cf4 //going into else we need to sync threads because it will directly go here\cf2\par
+\par
+\par
+\tab\tab\tab __syncthreads();\par
+\par
+\tab\tab\}\par
+\par
+\tab\tab\cf5 else\cf2\par
+\par
+\tab\tab\{\par
+\par
+\tab\tab\tab __syncthreads();\par
+\par
+\tab\tab\tab swappedeven = \cf5 false\cf2 ; \cf4 //false beforhand\cf2\par
+\par
+\tab\tab\tab __syncthreads();\par
+\par
+\tab\tab\tab\cf5 if\cf2  (threadIdx.y == 0) \{\par
+\par
+\tab\tab\tab\tab\cf5 int\cf2  idx = threadIdx.x;\par
+\tab\tab\tab\tab\cf5 if\cf2  (idx<(size / 2) - 1) \cf4 //for diff position\cf2\par
+\par
+\tab\tab\tab\tab\{\par
+\par
+\tab\tab\tab\tab\tab\cf5 if\cf2  (in[2 * idx + 1]>in[2 * idx + 2])\cf4 // exchange between positions\cf2\par
+\par
+\tab\tab\tab\tab\tab\{\par
+\par
+\tab\tab\tab\tab\tab\tab temp = in[2 * idx + 1];\par
+\tab\tab\tab\tab\tab\tab in[2 * idx + 1] = in[2 * idx + 2];\par
+\tab\tab\tab\tab\tab\tab in[2 * idx + 2] = temp;\par
+\tab\tab\tab\tab\tab\tab swappedeven = \cf5 true\cf2 ; \cf4 //if exchanged the true.\cf2\par
+\par
+\tab\tab\tab\tab\tab\}\par
+\par
+\tab\tab\tab\tab\}\par
+\par
+\par
+\tab\tab\tab\}\par
+\par
+\tab\tab\tab __syncthreads(); \cf4 //synching threads again\cf2\par
+\par
+\tab\tab\}\par
+\par
+\tab\tab\cf5 if\cf2  (!(swappedodd || swappedeven)) \cf4 //to this position the negation of it\cf2\par
+\tab\tab\tab\cf4 //Now if true or false is true then it will break. but in our case it will not break and switch mode of sorting\cf2\par
+\tab\tab\tab\cf4 //going back to swappedeven\cf2\par
+\par
+\tab\tab\tab\cf5 break\cf2 ; \cf4 //this will go on till false or false will make false and make it true but we get \cf2\par
+\par
+\tab\tab oddeven = !oddeven;\cf4 //switch mode of sorting\cf2\par
+\par
+\tab\} \cf4 // we get out of this loop if we get false;\cf2\par
+\par
+\par
+\par
+\tab __syncthreads(); \cf4 //syncing again\cf2\par
+\par
+\par
+\par
+\tab\cf5 int\cf2  idx = threadIdx.x; \cf4 //defining for this point again\cf2\par
+\par
+\tab\cf5 if\cf2  (idx <size) \cf4 //this will be the case if idx now has traversed all the nodes given to it by user\cf2\par
+\par
+\tab\tab out[idx] = in[idx]; \cf4 //getting the answer from in pointer to out pointer\cf2\par
+\par
+\}\par
+\cf4 //we get out of kernel and move to answer recovery\cf2\par
+\par
+\cf5 int\cf2  main(\cf5 void\cf2 )\par
+\{\par
+\tab\cf5 int\cf2  *a, *a_sorted, i; \cf4 //a and a_sorted are arrays which house initial and final array of numbers resp\cf2\par
+\tab\cf5 int\cf2  *d_a, *d_sorted; \cf4 //same thing but they house it in cuda gpu\cf2\par
+\tab\cf5 int\cf2  n; \cf4 // this is te number of integers taken to sort\cf2\par
+\par
+\tab printf(\cf3 "How many numbers do you want to search?\\n"\cf2 ); \cf4 //self explanatory\cf2\par
+\tab scanf(\cf3 "%d"\cf2 , &n);\par
+\par
+\tab\cf5 int\cf2  size = \cf5 sizeof\cf2 (\cf5 int\cf2 )*n; \cf4 //we take the size of the space we require multiplied by the number of integers\cf2\par
+\tab cudaMalloc((\cf5 void\cf2 **)&d_a, size); \cf4 //typecasting d_a which stands for device_array (basic memory allocation in gpu)\cf2\par
+\tab cudaMalloc((\cf5 void\cf2 **)&d_sorted, size);\cf4 // same for the sorted array in gpu\cf2\par
+\tab a = (\cf5 int\cf2 *)malloc(size);\cf4 // memory allocation in host.\cf2\par
+\tab a_sorted = (\cf5 int\cf2 *)malloc(size); \cf4 //memory allocation in host for sorted array\cf2\par
+\par
+\tab printf(\cf3 "enter the unsorted numbers\\n"\cf2 );\par
+\tab\cf5 for\cf2  (i = 0; i<n; i++)\par
+\tab\{\par
+\tab\tab scanf(\cf3 "%d"\cf2 , &a[i]); \cf4 //basic code to get array from user\cf2\par
+\par
+\tab\}\par
+\tab\tab\tab\cf4 //device <----//host\cf2\par
+\tab cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice); \cf4 //copying code from host to device. note the position of d_a and a\cf2\par
+\tab\tab\tab   \cf4 //block--->//threads //this can also be grid and block respectively.\cf2\par
+\tab testKernel << <1, n >> >(d_a, d_sorted, n); \cf4 //kernal call for cuda. triple angular bracket is the main part here\cf2\par
+\tab\tab\tab\cf4 //host<--//device\cf2\par
+\tab cudaMemcpy(a, d_a, size, cudaMemcpyDeviceToHost); \cf4 //after the kernel function we get the input from device to host\cf2\par
+\cf4 //is this necessary? yes doesn't work otherwise. //this point. Khatam! nobody stopped you, finish your business, then explain the next one. and mail this to me+ the \cf2\par
+\par
+\tab cudaMemcpy(a_sorted, d_sorted, size, cudaMemcpyDeviceToHost);\cf4 //this holds the answer. note the positions again\cf2\par
+\tab printf(\cf3 "\\nsorted array:\\n"\cf2 );\par
+\tab\cf5 for\cf2  (i = 0; i<n; i++)\par
+\tab\{\par
+\par
+\tab\tab printf(\cf3 "%d"\cf2 , a_sorted[i]); \cf4 //simple loop to print the output\cf2\par
+\tab\tab printf(\cf3 "\\t"\cf2 );\par
+\par
+\tab\}\par
+\par
+\tab free(a);\par
+\par
+\tab free(a_sorted);\par
+\tab cudaFree(d_sorted); \par
+\tab cudaFree(d_a); \cf4 // Anything else you didn't understand?\cf2\par
+\}\tab\tab\tab\par
+\par
+\cf0\f1\fs22\par
+}
+ 
