@@ -1,0 +1,170 @@
+#include <stdio.h> //standard input output
+#include <cuda.h> // cuda files to understand cudaMalloc functions
+
+__global__ void testKernel(int *in, int *out, int size)  // *in are pointers where we are going to point them at d_sorted and d_a;
+{		//you'll see
+
+	bool oddeven = true; //we take boolean values.
+	//on a serious matter lets move on
+	__shared__ bool swappedodd; //swappedodd and even are for the two ways in which odd-even sort is solved
+
+	__shared__ bool swappedeven;
+
+	int temp, i; //i is not necessary here. but temp is used to exchange numbers from their resp positions
+
+	swappedodd = true; //  you make it true and negate it later as you'll see.
+
+	swappedeven = true;
+
+
+	while (true) //infinite loop till false comes.
+
+	{
+
+		if (oddeven == true) //geys into this loop first because oddeven = true;
+
+		{
+
+			__syncthreads(); //imp! this is used to synchronize all threads that are generated within the global kernel
+			//This will ensure even if one thread gets its work done first it will wait till everyone is done with it.  
+			swappedodd = false; //this is done for it to comply with internal cond.
+
+			__syncthreads();// synchronizing again
+
+			if (threadIdx.y == 0) //if in array there is no y axis digits then...
+			{
+
+				int idx = threadIdx.x; //naming a variable as a thread id. it can be many threads like threadIdx.1 .2 .. and so on
+				if (idx<(size / 2)) //if idx has less no. than half the size of the array we enter the loop
+
+				{
+
+					if (in[2 * idx]>in[2 * idx + 1]) // if left index has more weighted number than right index number we exchage
+
+					{
+
+						//			swap(in[],in[2*idx+1]);
+						temp = in[2 * idx];
+						in[2 * idx] = in[2 * idx + 1];
+						in[2 * idx + 1] = temp;
+						swappedodd = true; //on exchange the swappedodd id turned true
+
+					}
+
+				}
+
+			} //going into else we need to sync threads because it will directly go here
+
+
+			__syncthreads();
+
+		}
+
+		else
+
+		{
+
+			__syncthreads();
+
+			swappedeven = false; //false beforhand
+
+			__syncthreads();
+
+			if (threadIdx.y == 0) {
+
+				int idx = threadIdx.x;
+				if (idx<(size / 2) - 1) //for diff position
+
+				{
+
+					if (in[2 * idx + 1]>in[2 * idx + 2])// exchange between positions
+
+					{
+
+						temp = in[2 * idx + 1];
+						in[2 * idx + 1] = in[2 * idx + 2];
+						in[2 * idx + 2] = temp;
+						swappedeven = true; //if exchanged the true.
+
+					}
+
+				}
+
+
+			}
+
+			__syncthreads(); //synching threads again
+
+		}
+
+		if (!(swappedodd || swappedeven)) //to this position the negation of it
+			//Now if true or false is true then it will break. but in our case it will not break and switch mode of sorting
+			//going back to swappedeven
+
+			break; //this will go on till false or false will make false and make it true but we get 
+
+		oddeven = !oddeven;//switch mode of sorting
+
+	} // we get out of this loop if we get false;
+
+
+
+	__syncthreads(); //syncing again
+
+
+
+	int idx = threadIdx.x; //defining for this point again
+
+	if (idx <size) //this will be the case if idx now has traversed all the nodes given to it by user
+
+		out[idx] = in[idx]; //getting the answer from in pointer to out pointer
+
+}
+//we get out of kernel and move to answer recovery
+
+int main(void)
+{
+	int *a, *a_sorted, i; //a and a_sorted are arrays which house initial and final array of numbers resp
+	int *d_a, *d_sorted; //same thing but they house it in cuda gpu
+	int n; // this is te number of integers taken to sort
+
+	printf("How many numbers do you want to search?\n"); //self explanatory
+	scanf("%d", &n);
+
+	int size = sizeof(int)*n; //we take the size of the space we require multiplied by the number of integers
+	cudaMalloc((void**)&d_a, size); //typecasting d_a which stands for device_array (basic memory allocation in gpu)
+	cudaMalloc((void**)&d_sorted, size);// same for the sorted array in gpu
+	a = (int*)malloc(size);// memory allocation in host.
+	a_sorted = (int*)malloc(size); //memory allocation in host for sorted array
+
+	printf("enter the unsorted numbers\n");
+	for (i = 0; i<n; i++)
+	{
+		scanf("%d", &a[i]); //basic code to get array from user
+
+	}
+			//device <----//host
+	cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice); //copying code from host to device. note the position of d_a and a
+			  //block--->//threads //this can also be grid and block respectively.
+	testKernel << <1, n >> >(d_a, d_sorted, n); //kernal call for cuda. triple angular bracket is the main part here
+			//host<--//device
+	cudaMemcpy(a, d_a, size, cudaMemcpyDeviceToHost); //after the kernel function we get the input from device to host
+//is this necessary? yes doesn't work otherwise. //this point. Khatam! nobody stopped you, finish your business, then explain the next one. and mail this to me+ the 
+
+	cudaMemcpy(a_sorted, d_sorted, size, cudaMemcpyDeviceToHost);//this holds the answer. note the positions again
+	printf("\nsorted array:\n");
+	for (i = 0; i<n; i++)
+	{
+
+		printf("%d", a_sorted[i]); //simple loop to print the output
+		printf("\t");
+
+	}
+
+	free(a);
+
+	free(a_sorted);
+	cudaFree(d_sorted); 
+	cudaFree(d_a); // Anything else you didn't understand?
+}			
+
